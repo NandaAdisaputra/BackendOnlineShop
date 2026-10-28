@@ -67,26 +67,33 @@ function validateToken($pdo) {
 
     return $user;
 }
-// Fungsi untuk mengubah nama file gambar menjadi URL lengkap
+// Fungsi untuk mengubah nama file gambar menjadi URL lengkap yang aman
 function getImageUrl($filename) {
     if (empty($filename)) {
         return null;
     }
     
+    // Jika nama file sudah berupa URL lengkap (http:// atau https://), kembalikan langsung
+    if (filter_var($filename, FILTER_VALIDATE_URL)) {
+        return $filename;
+    }
+
     // Deteksi protokol (http / https) dan host secara dinamis
     $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
     $host = $_SERVER['HTTP_HOST'];
     
-    // Sesuaikan '/OnlineShop/uploads/' dengan nama folder proyek Anda di htdocs
-    return $protocol . "://" . $host . "/OnlineShop/uploads/" . $filename;
+    // ltrim digunakan untuk mencegah double slash (misal: //nama_file.jpg) jika database menyimpan dengan garis miring di awal
+    return $protocol . "://" . $host . "/OnlineShop/uploads/" . ltrim($filename, '/');
 }
-// Fungsi untuk handle upload file gambar
+// Fungsi untuk handle upload file gambar agar sesuai dengan struktur cPanel
 function uploadImage($file) {
     if (!isset($file) || $file['error'] !== UPLOAD_ERR_OK) {
         return null;
     }
 
-    $targetDir = __DIR__ . '/../uploads/';
+    // Menggunakan path absolut berbasis DOCUMENT_ROOT agar pasti masuk ke public_html/OnlineShop/uploads/
+    $targetDir = $_SERVER['DOCUMENT_ROOT'] . '/OnlineShop/uploads/';
+
     // Buat folder uploads jika belum ada
     if (!is_dir($targetDir)) {
         mkdir($targetDir, 0777, true);
@@ -104,7 +111,7 @@ function uploadImage($file) {
     $targetFilePath = $targetDir . $fileName;
 
     if (move_uploaded_file($file['tmp_name'], $targetFilePath)) {
-        return $fileName;
+        return $fileName; // Mengembalikan nama file untuk disimpan ke database
     }
 
     return null;
