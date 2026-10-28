@@ -9,9 +9,14 @@ validateToken($pdo);
 $usePagination = isset($_GET['page']) || isset($_GET['limit']);
 
 try {
+    // Fungsi helper lokal untuk memetakan URL gambar ke setiap produk
+    $mapProductImage = function(&$product) {
+        $product['gambar'] = getImageUrl($product['gambar']);
+    };
+
     if ($usePagination) {
-        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 10;
+        $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+        $limit = isset($_GET['limit']) ? max(1, (int)$_GET['limit']) : 10;
         $offset = ($page - 1) * $limit;
 
         $countStmt = $pdo->query("SELECT COUNT(*) as total FROM products");
@@ -22,13 +27,10 @@ try {
         $stmt->bindValue(1, $limit, PDO::PARAM_INT);
         $stmt->bindValue(2, $offset, PDO::PARAM_INT);
         $stmt->execute();
-        $products = $stmt->fetchAll();
+        $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         // Ubah gambar menjadi URL lengkap
-        foreach ($products as &$product) {
-            $product['gambar'] = getImageUrl($product['gambar']);
-        }
-        unset($product);
+        array_walk($products, $mapProductImage);
 
         sendResponse(true, 200, "Berhasil mengambil daftar produk (dengan pagination)", [
             "pagination" => [
@@ -41,13 +43,10 @@ try {
         ]);
     } else {
         $stmt = $pdo->query("SELECT * FROM products ORDER BY id DESC");
-        $products = $stmt->fetchAll();
+        $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         // Ubah gambar menjadi URL lengkap
-        foreach ($products as &$product) {
-            $product['gambar'] = getImageUrl($product['gambar']);
-        }
-        unset($product);
+        array_walk($products, $mapProductImage);
 
         sendResponse(true, 200, "Berhasil mengambil seluruh daftar produk", [
             "products" => $products
